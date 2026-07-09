@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>价值观拼图 · 即时锁定</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(145deg, #0b1a33, #0f274a, #0b1a33);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            touch-action: pan-y;
+        }
+        .page {
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-radius: 48px;
+            padding: 28px 24px 32px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .title {
+            text-align: center;
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #f0e6d0, #ffd966);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: #a0b8d4;
+            font-size: 15px;
+            margin: 6px 0 14px;
+            letter-spacing: 1px;
+        }
+        .timer {
+            text-align: center;
+            color: #7ecfff;
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .progress {
+            height: 6px;
+            background: #1e3a5f;
+            border-radius: 99px;
+            overflow: hidden;
+            max-width: 900px;
+            margin: 0 auto 22px;
+        }
+        .bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4ddfff, #7ae0b0);
+            transition: width 0.15s ease;
+        }
+        .main {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            align-items: stretch;
+        }
+        .board-wrap {
+            flex: 0 0 auto;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 82px);
+            gap: 10px;
+            background: rgba(0,0,0,0.25);
+            padding: 14px;
+            border-radius: 28px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .cell {
+            width: 82px;
+            height: 82px;
+            background: #1f3b60;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            font-weight: 600;
+            color: #f0f4fa;
+            cursor: grab;
+            touch-action: none;
+            transition: all 0.08s ease;
+            box-shadow: 0 4px 0 #0e1f34, 0 6px 12px rgba(0,0,0,0.3);
+            border: 1px solid #2f4d78;
+            position: relative;
+            z-index: 1;
+        }
+        .cell:active {
+            cursor: grabbing;
+        }
+        .cell.dragging {
+            opacity: 0.4;
+            transform: scale(0.92);
+            z-index: 1000;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+        }
+        .cell.drag-over {
+            border-color: #7ecfff;
+            background: #2a4d7a;
+            box-shadow: 0 0 0 3px rgba(100, 200, 255, 0.25);
+            transform: scale(1.04);
+        }
+        .cell.correct {
+            background: #1a7a4a;
+            border-color: #3bb87a;
+            box-shadow: 0 0 16px rgba(50, 220, 130, 0.25);
+            cursor: default;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+        .cell.selected {
+            outline: 3px solid #ff8a6c;
+            outline-offset: 2px;
+        }
+        .notes {
+            flex: 1;
+            min-width: 220px;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: center;
+            padding: 8px 0;
+        }
+        .note {
+            background: rgba(255,255,255,0.05);
+            border-left: 4px solid #4ddfff;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 17px;
+            line-height: 1.5;
+            color: #d6e5f5;
+            backdrop-filter: blur(4px);
+            transition: 0.15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .note.done {
+            border-left-color: #3bb87a;
+            background: rgba(50, 200, 120, 0.08);
+            color: #c8f0d8;
+        }
+        .note .badge {
+            float: right;
+            font-size: 13px;
+            background: #1e3a5f;
+            padding: 0 12px;
+            border-radius: 40px;
+            color: #a0b8d4;
+        }
+        .note .badge.ok {
+            background: #1a7a4a;
+            color: #b0e8c0;
+        }
+        .btns {
+            text-align: center;
+            margin-top: 28px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1f3b60;
+            border: none;
+            color: #fff;
+            padding: 10px 28px;
+            border-radius: 60px;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.08s linear;
+            box-shadow: 0 4px 0 #0e1f34;
+            border: 1px solid #2f4d78;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #0e1f34;
+        }
+        .btn-primary {
+            background: #d84a4a;
+            border-color: #e06060;
+            box-shadow: 0 4px 0 #8a2a2a;
+        }
+        .modal, .rank {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            backdrop-filter: blur(8px);
+        }
+        .modal-box, .rank-box {
+            background: #142b4a;
+            padding: 40px 48px;
+            border-radius: 40px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        }
+        .modal-box h2, .rank-box h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            color: #f0e6d0;
+        }
+        .modal-box .score {
+            font-size: 20px;
+            color: #7ecfff;
+            margin: 12px 0;
+        }
+        .rank-box #ranklist {
+            color: #c8dce8;
+            font-size: 18px;
+            line-height: 2;
+            margin: 16px 0;
+            text-align: left;
+            padding-left: 20px;
+        }
+        .rank-box #ranklist span {
+            display: inline-block;
+            min-width: 40px;
+        }
+        .footer {
+            text-align: center;
+            color: #4a6a8a;
+            font-size: 13px;
+            margin-top: 20px;
+            letter-spacing: 1px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            padding-top: 16px;
+        }
+        @media (max-width: 680px) {
+            .board { grid-template-columns: repeat(4, 64px); gap: 8px; padding: 10px; }
+            .cell { width: 64px; height: 64px; font-size: 26px; }
+            .notes { min-width: 140px; }
+            .note { font-size: 14px; padding: 10px 14px; }
+            .title { font-size: 24px; }
+            .page { padding: 16px 12px; }
+        }
+        @media (max-width: 460px) {
+            .board { grid-template-columns: repeat(4, 56px); gap: 6px; padding: 8px; }
+            .cell { width: 56px; height: 56px; font-size: 22px; border-radius: 12px; }
+            .note { font-size: 12px; padding: 8px 12px; }
+            .modal-box, .rank-box { padding: 28px 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="title">🧩 文化价值观拼图</div>
+    <div class="subtitle">点击交换字块，还原拼图，解锁企业文化核心价值观。</div>
+    <div class="timer">⏱ <span id="timerDisplay">0</span> s</div>
+    <div class="progress"><div id="progressBar" class="bar"></div></div>
+
+    <div class="main">
+        <div class="board-wrap">
+            <div id="board" class="board"></div>
+        </div>
+        <div id="notesContainer" class="notes"></div>
+    </div>
+
+    <div class="btns">
+        <button class="btn btn-primary" onclick="restartGame()">🔄 重新挑战</button>
+        <button class="btn" onclick="showRanking()">🏆 排行榜</button>
+    </div>
+    <div class="footer">自由拖拽任意字块交换 · 拼对后立即锁定变绿</div>
+</div>
+
+<!-- 胜利弹窗 -->
+<div id="winModal" class="modal">
+    <div class="modal-box">
+        <h2>🎉 挑战成功！</h2>
+        <div class="score" id="winScore">用时 0 秒</div>
+        <div class="score" id="winRank" style="font-size:16px;color:#c8dce8;">当前排名 #1</div>
+        <button class="btn" onclick="closeWin()" style="margin-top:16px;">继续</button>
+    </div>
+</div>
+
+<!-- 排行榜 -->
+<div id="rankModal" class="rank">
+    <div class="rank-box">
+        <h2>🏆 TOP10 排行榜</h2>
+        <div id="rankList"></div>
+        <button class="btn" onclick="closeRank()">关闭</button>
+    </div>
+</div>
+
+<script>
+    // ---------- 数据 ----------
+    // 正确答案按行排列：
+    // 第1行 (索引0-3): 大胆畅想
+    // 第2行 (索引4-7): 践行责任
+    // 第3行 (索引8-11): 永不止步
+    // 第4行 (索引12-15): 通力协作
+    const IDIOMS = [
+        { chars: ['大','胆','畅','想'], meaning: '突破局限，在每一项工作中发现可能。' },
+        { chars: ['践','行','责','任'], meaning: '对工作结果全权负责，对做出的承诺坚决兑现。' },
+        { chars: ['永','不','止','步'], meaning: '敢于提出关键问题，持续创新。' },
+        { chars: ['通','力','协','作'], meaning: '同心同行，方能成就卓越。' }
+    ];
+
+    const ALL_CHARS = IDIOMS.flatMap(item => item.chars);
+    const TARGET = [...ALL_CHARS];
+
+    // ---------- 状态 ----------
+    let state = [];
+    let placed = [];
+    let seconds = 0;
+    let timerInterval = null;
+    let dragState = null;
+    let selectedIndex = null;
+    let isRendering = false; // 防止递归
+
+    const boardEl = document.getElementById('board');
+    const notesEl = document.getElementById('notesContainer');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const progressBar = document.getElementById('progressBar');
+    const winModal = document.getElementById('winModal');
+    const winScore = document.getElementById('winScore');
+    const winRank = document.getElementById('winRank');
+    const rankModal = document.getElementById('rankModal');
+    const rankList = document.getElementById('rankList');
+
+    const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+
+    // ---------- 工具 ----------
+    function shuffleArray(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function initGame() {
+        state = shuffleArray([...ALL_CHARS]);
+        placed = new Array(16).fill(false);
+        seconds = 0;
+        timerDisplay.textContent = '0';
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        selectedIndex = null;
+        dragState = null;
+        winModal.style.display = 'none';
+        render();
+        timerInterval = setInterval(() => {
+            seconds++;
+            timerDisplay.textContent = seconds;
+        }, 1000);
+    }
+
+    // ---------- 检查并立即锁定正确位置 ----------
+    function checkAndLock() {
+        let anyChanged = false;
+        for (let i = 0; i < 16; i++) {
+            if (!placed[i] && state[i] === TARGET[i]) {
+                placed[i] = true;
+                anyChanged = true;
+            }
+        }
+        if (anyChanged) {
+            // 重新渲染以更新UI
+            render();
+        }
+        // 检查是否全部完成
+        const allDone = placed.every(v => v === true);
+        if (allDone) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            const rank = saveScore(seconds);
+            winScore.textContent = `⏱ 用时 ${seconds} 秒`;
+            winRank.textContent = `🏅 当前排名 #${rank}`;
+            winModal.style.display = 'flex';
+        }
+        return anyChanged;
+    }
+
+    // ---------- 更新进度和释义 ----------
+    function updateProgressAndNotes() {
+        let correctCount = placed.filter(v => v).length;
+        progressBar.style.width = (correctCount / 16 * 100) + '%';
+
+        const noteItems = notesEl.querySelectorAll('.note');
+        for (let i = 0; i < IDIOMS.length; i++) {
+            const start = i * 4;
+            let allDone = true;
+            for (let j = 0; j < 4; j++) {
+                if (!placed[start + j]) { allDone = false; break; }
+            }
+            const badge = noteItems[i].querySelector('.badge');
+            if (allDone) {
+                noteItems[i].classList.add('done');
+                if (badge) { badge.textContent = '✓ 完成'; badge.className = 'badge ok'; }
+            } else {
+                noteItems[i].classList.remove('done');
+                if (badge) { badge.textContent = '拼字中'; badge.className = 'badge'; }
+            }
+        }
+    }
+
+    // ---------- 渲染 ----------
+    function render() {
+        if (isRendering) return;
+        isRendering = true;
+
+        boardEl.innerHTML = '';
+        for (let i = 0; i < 16; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (placed[i]) cell.classList.add('correct');
+            if (selectedIndex === i) cell.classList.add('selected');
+            cell.textContent = state[i];
+            cell.dataset.index = i;
+            cell.dataset.placed = placed[i] ? 'true' : 'false';
+
+            if (!placed[i]) {
+                cell.draggable = true;
+                cell.addEventListener('dragstart', onDragStart);
+                cell.addEventListener('dragend', onDragEnd);
+                cell.addEventListener('dragover', onDragOver);
+                cell.addEventListener('dragenter', onDragEnter);
+                cell.addEventListener('dragleave', onDragLeave);
+                cell.addEventListener('drop', onDrop);
+                if (isMobile) {
+                    cell.addEventListener('click', () => onCellClick(i));
+                }
+            } else {
+                cell.draggable = false;
+            }
+            boardEl.appendChild(cell);
+        }
+
+        updateProgressAndNotes();
+        isRendering = false;
+    }
+
+    // ---------- 执行交换并立即检查锁定 ----------
+    function performSwap(idxA, idxB) {
+        if (idxA === idxB) return false;
+        if (placed[idxA] || placed[idxB]) return false;
+
+        // 交换
+        [state[idxA], state[idxB]] = [state[idxB], state[idxA]];
+        selectedIndex = null;
+
+        // 立即检查并锁定正确位置
+        checkAndLock();
+
+        if (navigator.vibrate) navigator.vibrate(6);
+        return true;
+    }
+
+    // ---------- 拖拽事件 ----------
+    function onDragStart(e) {
+        const cell = e.target.closest('.cell');
+        if (!cell || cell.dataset.placed === 'true') {
+            e.preventDefault();
+            return;
+        }
+        const idx = parseInt(cell.dataset.index, 10);
+        dragState = { index: idx, element: cell };
+        e.dataTransfer.setData('text/plain', String(idx));
+        e.dataTransfer.effectAllowed = 'move';
+        cell.classList.add('dragging');
+    }
+
+    function onDragEnd(e) {
+        const cell = e.target.closest('.cell');
+        if (cell) cell.classList.remove('dragging');
+        document.querySelectorAll('.cell.drag-over').forEach(el => el.classList.remove('drag-over'));
+        dragState = null;
+    }
+
+    function onDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const target = e.target.closest('.cell');
+        if (target && target.dataset.placed === 'false' && target !== dragState?.element) {
+            target.classList.add('drag-over');
+        }
+    }
+
+    function onDragEnter(e) { e.preventDefault(); }
+
+    function onDragLeave(e) {
+        const target = e.target.closest('.cell');
+        if (target) target.classList.remove('drag-over');
+    }
+
+    function onDrop(e) {
+        e.preventDefault();
+        const target = e.target.closest('.cell');
+        if (!target) return;
+        target.classList.remove('drag-over');
+        if (!dragState) return;
+        if (target.dataset.placed === 'true') return;
+        if (target === dragState.element) return;
+
+        const fromIdx = dragState.index;
+        const toIdx = parseInt(target.dataset.index, 10);
+
+        performSwap(fromIdx, toIdx);
+    }
+
+    // ---------- 移动端点击 ----------
+    function onCellClick(idx) {
+        if (placed[idx]) return;
+        if (selectedIndex === null) {
+            selectedIndex = idx;
+            render();
+            return;
+        }
+        if (selectedIndex === idx) {
+            selectedIndex = null;
+            render();
+            return;
+        }
+        performSwap(selectedIndex, idx);
+    }
+
+    // ---------- 排行榜 ----------
+    function saveScore(time) {
+        const key = 'culturePuzzleV9';
+        let scores = JSON.parse(localStorage.getItem(key) || '[]');
+        scores.push(time);
+        scores.sort((a, b) => a - b);
+        if (scores.length > 100) scores = scores.slice(0, 100);
+        localStorage.setItem(key, JSON.stringify(scores));
+        return scores.indexOf(time) + 1;
+    }
+
+    function getScores() {
+        const key = 'culturePuzzleV9';
+        return JSON.parse(localStorage.getItem(key) || '[]');
+    }
+
+    function showRanking() {
+        const scores = getScores();
+        const top = scores.slice(0, 10);
+        if (top.length === 0) {
+            rankList.innerHTML = '<div style="text-align:center;color:#8aa0b8;padding:20px;">暂无记录，快来挑战吧！</div>';
+        } else {
+            rankList.innerHTML = top.map((v, i) =>
+                `<div><span>#${i+1}</span> <span>${v}</span> 秒</div>`
+            ).join('');
+        }
+        rankModal.style.display = 'flex';
+    }
+
+    function closeRank() { rankModal.style.display = 'none'; }
+    function closeWin() { winModal.style.display = 'none'; }
+    function restartGame() {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        initGame();
+    }
+
+    function renderNotes() {
+        notesEl.innerHTML = '';
+        IDIOMS.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.className = 'note';
+            div.innerHTML = `
+                <span>${item.meaning}</span>
+                <span class="badge">拼字中</span>
+            `;
+            notesEl.appendChild(div);
+        });
+    }
+
+    // ---------- 启动 ----------
+    function init() {
+        renderNotes();
+        initGame();
+    }
+    init();
+    console.log('🧩 即时锁定拼图已启动！');
+</script>
+</body>
+</html>
